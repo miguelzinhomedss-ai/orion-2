@@ -1,0 +1,9 @@
+# Python 3.12; PyAudio fornece rodas para Windows 10.
+groq>=1.0,<2
+python-dotenv>=1.0,<2
+psutil>=7,<8
+pyttsx3>=2.99,<3
+SpeechRecognition>=3.14,<4
+PyAudio>=0.2.14,<0.3
+edge-tts>=7.2,<8
+pygame>=2.6,<3

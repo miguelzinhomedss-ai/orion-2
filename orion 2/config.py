@@ -69,3 +69,13 @@ TASKS_FILE = "orion_tarefas.json"
 WAKE_WORD = "orion"
 
 DEBUG = True
+
+# Síntese principal online; use ORION_TTS_BACKEND=offline para não enviar texto.
+TTS_BACKEND = os.getenv("ORION_TTS_BACKEND", "edge")
+TTS_VOICE = os.getenv("ORION_TTS_VOICE", "pt-BR-AntonioNeural")
+TTS_RATE = os.getenv("ORION_TTS_RATE", "-8%")
+TTS_PITCH = os.getenv("ORION_TTS_PITCH", "-5Hz")
+TTS_TIMEOUT = 20  # Limite total para gerar uma resposta de voz online.
+TTS_PLAYBACK_TIMEOUT = 180
+TTS_OFFLINE_VOICE = os.getenv("ORION_TTS_OFFLINE_VOICE", "")
+TTS_OFFLINE_RATE = 165  # Palavras por minuto; SAPI não oferece pitch portátil.
