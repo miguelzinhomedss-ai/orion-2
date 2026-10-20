@@ -1,0 +1,4 @@
+modelos/
+resultados/
+__pycache__/
+*.py[cod]

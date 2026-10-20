@@ -1,0 +1,6 @@
+# Ambiente opcional separado, Python 3.12 / CPU. Não instalar no venv do ORION.
+kokoro-onnx==0.6.1
+onnxruntime==1.31.0
+espeakng-loader==0.2.4
+soundfile==0.14.0
+numpy>=2.0.2,<3
