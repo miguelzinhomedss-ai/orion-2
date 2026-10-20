@@ -9,6 +9,7 @@ import re
 from tkinter import scrolledtext
 
 from voz_entrada import ReconhecedorVoz
+from voz import cancelar_fala, contexto_fala
 
 from config import (
     APP_NAME,
@@ -30,6 +31,7 @@ class OrionInterface:
         self.responder = responder
         self.modo_voz = False
         self.encerrando = False
+        self.cancelamento_fala = threading.Event()
         self.eventos = queue.Queue()
         self.sessao_voz = 0
         self.escuta_ativa = False
@@ -495,6 +497,12 @@ class OrionInterface:
         # ====================================================
         # MONITORAMENTO
         # ====================================================
+
+        self.botao_parar_fala = tk.Button(
+            inferior, text="PARAR FALA", command=self.parar_fala,
+            bg=DARK_GRAY, fg=CYAN, font=("Consolas", 9, "bold"),
+            relief="flat", padx=10, pady=9, cursor="hand2")
+        self.botao_parar_fala.pack(side="right", padx=(0, 8))
 
         self.atualizar_sistema()
 
@@ -1093,6 +1101,7 @@ class OrionInterface:
         if self.textos_pendentes and not self.escuta_ativa and not self.processamento_ativo:
             texto = self.textos_pendentes.pop(0)
             self.processamento_ativo = True
+            self.cancelamento_fala = threading.Event()
             self.definir_estado("processando")
             threading.Thread(target=self.processar_em_background,
                              args=(texto,), daemon=False).start()
@@ -1120,7 +1129,12 @@ class OrionInterface:
             self.definir_estado("standby")
         self.adicionar_mensagem("SISTEMA", "Modo de voz desativado.")
 
+    def parar_fala(self):
+        self.cancelamento_fala.set()
+        cancelar_fala()
+
     def fechar(self):
+        self.parar_fala()
         self.encerrando = True
         self.modo_voz = False
         self.sessao_voz += 1
@@ -1316,7 +1330,8 @@ class OrionInterface:
     def processar_em_background(self, texto):
         try:
             # O callback só retorna depois de main concluir também falar().
-            resposta = self.responder(texto) or "Nao consegui responder."
+            with contexto_fala(getattr(self, "cancelamento_fala", None)):
+                resposta = self.responder(texto) or "Nao consegui responder."
             self.eventos.put(("resposta", (resposta, False)))
         except Exception:
             self.eventos.put(("resposta", (None, True)))

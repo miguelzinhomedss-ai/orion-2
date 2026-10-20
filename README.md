@@ -31,8 +31,8 @@ Assistente desktop em Python com Tkinter, Groq, memória e tarefas em JSON.
 
 ## Voz
 
-- **Saída principal:** `edge-tts` com `pt-BR-AntonioNeural`, velocidade `-8%` e tom `-5Hz`: voz masculina brasileira, um pouco mais lenta e grave. O texto é enviado ao serviço online de voz da Microsoft; não exige chave ElevenLabs. O MP3 temporário é reproduzido por `pygame` e removido ao terminar.
-- **Fallback automático:** falha de rede, timeout, dependência ausente ou erro de reprodução aciona `pyttsx3`/SAPI5 offline. O fallback prefere uma voz brasileira masculina instalada. Instale uma voz portuguesa nas configurações de fala do Windows; nem todas as vozes do Windows ficam disponíveis no SAPI5. Se a síntese offline também falhar, a resposta permanece no chat.
+- **Saída principal:** Kokoro local `pm_alex`, com sessão persistente por CPU e reprodução progressiva de trechos em memória. A alternativa é `edge-tts`/AntonioNeural; o último fallback é pyttsx3. Veja [instalação, cancelamento e medição de latência](docs/VOZ_KOKORO.md).
+- **Fallback automático:** falha do Kokoro aciona AntonioNeural; se ele falhar, tenta `pyttsx3`/SAPI5 offline. O fallback prefere uma voz brasileira masculina instalada. Instale uma voz portuguesa nas configurações de fala do Windows; nem todas as vozes do Windows ficam disponíveis no SAPI5. Se a síntese offline também falhar, a resposta permanece no chat.
 - **Entrada:** clique em **VOZ** e diga “ORION” seguido do comando, por exemplo “Orion, listar tarefas”. O módulo `voz_entrada` usa SpeechRecognition/PyAudio com o microfone padrão. O reconhecimento Google exige Internet e envia o áudio capturado ao serviço; não exige chave Groq para transcrever. A escuta limita cada captura a 5 segundos de fala e 1 segundo de espera, com timeout de rede de 5 segundos. Silêncio e fala incompreensível são ignorados.
 - Para encerrar a escuta, clique novamente em **VOZ** ou diga “Orion, parar”. A interface descarta resultados cancelados; uma captura/requisição já iniciada pode levar alguns segundos para retornar.
 - Sem microfone, PyAudio ou conexão, a interface desativa a escuta após a falha e mantém o chat. Sem saída de áudio ou motor de síntese, a resposta permanece disponível por texto. O aplicativo não abre dispositivos de áudio durante a inicialização.
@@ -41,7 +41,7 @@ Assistente desktop em Python com Tkinter, Groq, memória e tarefas em JSON.
 
 ## Arquitetura
 
-`main.Orion.processar` mantém o roteamento de intenções, tarefas, comandos e Groq e chama `falar` na thread de processamento. `falar` serializa geração e reprodução online e offline com um único bloqueio. A chamada permanece síncrona na thread de trabalho existente da interface, mantendo o Tkinter livre e impedindo que a escuta reinicie enquanto a fala não terminou. O motor offline é criado/usado/encerrado na mesma thread. O download tem limite total de 20 segundos; a reprodução, de 180 segundos. O player é encerrado antes de tentar o fallback e os arquivos temporários são removidos também em falhas.
+`main.Orion.processar` mantém o roteamento de intenções, tarefas, comandos e Groq e chama `falar` na thread de processamento. `falar` serializa geração e reprodução Kokoro, Edge e pyttsx3 com um único bloqueio. Kokoro usa modelo persistente e trechos WAV em memória com uma geração antecipada. O botão PARAR FALA permite cancelar sem bloquear o Tkinter. A chamada permanece síncrona na thread de trabalho existente da interface, mantendo o Tkinter livre e impedindo que a escuta reinicie enquanto a fala não terminou. O motor offline é criado/usado/encerrado na mesma thread. O download tem limite total de 20 segundos; a reprodução, de 180 segundos. O player é encerrado antes de tentar o fallback e os arquivos temporários são removidos também em falhas.
 
 `interface.OrionInterface` cria `ReconhecedorVoz` sem acessar hardware. Ao ativar voz, chama `ouvir(evento_de_cancelamento)` em background e recebe texto/erros pela fila existente. Nenhum dos novos módulos acessa widgets Tk. Memória, tarefas, intenções e cliente Groq continuam nas implementações existentes.
 
@@ -65,7 +65,7 @@ As opções ficam em `orion 2/config.py`. As variáveis abaixo podem ser definid
 
 | Variável | Padrão | Significado |
 | --- | --- | --- |
-| `ORION_TTS_BACKEND` | `edge` | `edge` com fallback automático ou `offline` para apenas SAPI |
+| `ORION_TTS_BACKEND` | `kokoro` | Kokoro → Edge → pyttsx3; `edge` ou `pyttsx3`/`offline` para seleção explícita |
 | `ORION_TTS_VOICE` | `pt-BR-AntonioNeural` | Nome da voz online |
 | `ORION_TTS_RATE` | `-8%` | Velocidade relativa; inclua sinal e `%` |
 | `ORION_TTS_PITCH` | `-5Hz` | Tom relativo; inclua sinal e `Hz` |
@@ -88,3 +88,9 @@ cd "orion 2"
 `True` significa que a síntese principal **ou** o fallback terminou. Observe o aviso “Voz online indisponível” para distinguir o uso do fallback. Para testar apenas o offline, repita com `$env:ORION_TTS_BACKEND = "offline"`. Para verificar a troca automática, use `edge`, desconecte a Internet e repita: após a falha/timeout, deve tocar a voz local instalada. Sem dispositivo de áudio, a chamada pode retornar `False`, mantendo o aplicativo utilizável por texto.
 
 Para testar na interface, execute `..\.venv\Scripts\python.exe main.py`, envie um comando por texto e confirme que a janela continua aceitando eventos durante a fala. Os parâmetros são um ponto de partida para uma identidade própria; ajuste-os conforme a qualidade percebida no seu equipamento.
+
+## Experimento opcional: Kokoro por CPU
+
+O comparador de vozes masculinas `pm_alex` e `pm_santa` está em [experiments/kokoro](experiments/kokoro/README.md), com ambiente Python 3.12 separado e instruções para Windows 10. Usa modelo INT8 de ~92,4 MB e pacote de vozes de ~28,2 MB, baixados apenas pelo comando explícito documentado. A integração principal agora prefere Kokoro, preservando AntonioNeural e pyttsx3 como alternativas; veja [o guia da integração](docs/VOZ_KOKORO.md).
+
+Para executar o ORION com Kokoro, use o ambiente separado e `requirements-kokoro.txt`, conforme [o guia Windows](docs/VOZ_KOKORO.md). O procedimento inicial com `requirements.txt` continua permitindo Edge/pyttsx3 sem instalar Kokoro.

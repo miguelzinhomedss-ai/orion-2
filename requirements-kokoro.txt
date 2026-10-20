@@ -1,0 +1,3 @@
+# Instalar em .venv-orion-kokoro separado; preserva o ambiente ORION existente.
+-r requirements.txt
+-r experiments/kokoro/requirements.txt

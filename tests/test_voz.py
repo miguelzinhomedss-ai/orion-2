@@ -21,6 +21,7 @@ class VozTests(unittest.TestCase):
 
     def motor(self):
         motor = Mock()
+        motor.isBusy.return_value = False
         motor.getProperty.return_value = [
             types.SimpleNamespace(id='en', name='David', languages=['en-US'], gender='male'),
             types.SimpleNamespace(id='pt', name='Maria', languages=['pt-BR'], gender='female'),
@@ -33,12 +34,13 @@ class VozTests(unittest.TestCase):
             self.assertTrue(voz.falar('Olá, Miguel!'))
         motor.setProperty.assert_any_call('voice', 'br')
         motor.say.assert_called_once_with('Olá, Miguel!')
-        motor.runAndWait.assert_called_once()
+        motor.startLoop.assert_called_once_with(False)
+        motor.endLoop.assert_called_once()
         motor.stop.assert_called_once()
 
     def test_falha_audio_preserva_texto(self):
         motor = self.motor()
-        motor.runAndWait.side_effect = OSError('sem dispositivo')
+        motor.startLoop.side_effect = OSError('sem dispositivo')
         with patch.dict(sys.modules, pyttsx3=Mock(init=Mock(return_value=motor))):
             self.assertFalse(voz.falar('Resposta'))
         motor.stop.assert_called_once()
